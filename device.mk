@@ -61,9 +61,6 @@ PRODUCT_PACKAGES += \
     android.hardware.health@2.1-impl.recovery \
     android.hardware.health@2.1-service.rc
 
-$(PRODUCT_OUT)/dtb.img: $(DEVICE_PATH)/prebuilt/dtb.img
-	cp $< $@
-
 PRODUCT_SOONG_NAMESPACES += $(LOCAL_PATH)
 
 PRODUCT_PACKAGES += \
