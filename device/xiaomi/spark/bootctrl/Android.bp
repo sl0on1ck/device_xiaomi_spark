@@ -1,0 +1,10 @@
+cc_library_shared {
+    name: "bootctrl.mt6768",
+    defaults: ["bootctrl_defaults"],
+    vendor: true,
+    recovery_available: true,
+    strip: {
+        none: true,
+    },
+    srcs: ["bootctrl.cpp"],
+}

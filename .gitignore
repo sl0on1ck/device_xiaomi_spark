@@ -1,0 +1,8 @@
+*.tgz
+*.tar.gz
+firmware/
+vendor_boot_out/
+boot_out/
+sync/
+sync.log
+fox_12.1/
