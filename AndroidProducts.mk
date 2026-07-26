@@ -1,5 +1,5 @@
 PRODUCT_MAKEFILES := \
-    $(LOCAL_DIR)/fox_spark.mk
+    $(LOCAL_DIR)/twrp_spark.mk
 
 COMMON_LUNCH_CHOICES := \
     twrp_spark-user \
