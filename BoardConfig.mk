@@ -40,7 +40,6 @@ TARGET_PREBUILT_DTB := $(DEVICE_PATH)/prebuilt/dtb.img
 BOARD_USES_RECOVERY_AS_BOOT := true
 
 BOARD_MKBOOTIMG_ARGS += \
-	--dtb $(TARGET_PREBUILT_DTB) \
 	--pagesize $(BOARD_PAGE_SIZE) \
 	--kernel_offset $(BOARD_KERNEL_OFFSET) \
 	--ramdisk_offset $(BOARD_RAMDISK_OFFSET) \
@@ -48,6 +47,7 @@ BOARD_MKBOOTIMG_ARGS += \
 	--header_version $(BOARD_BOOT_HEADER_VERSION) \
 	--dtb_offset $(BOARD_DTB_OFFSET)
 
+BOARD_INCLUDE_DTB_IN_BOOTIMG := true
 BOARD_KERNEL_SEPARATED_DTBO := true
 BOARD_PREBUILT_DTBOIMAGE := $(DEVICE_PATH)/prebuilt/dtbo.img
 
