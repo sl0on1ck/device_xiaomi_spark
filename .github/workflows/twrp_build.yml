@@ -1,0 +1,126 @@
+name: TWRP Build for spark
+
+on:
+  workflow_dispatch:
+    inputs:
+      DEVICE_TREE_BRANCH:
+        description: 'Device Tree Branch'
+        required: true
+        default: 'twrp'
+      BUILD_TARGET:
+        description: 'Build Target'
+        required: true
+        default: 'boot'
+        type: choice
+        options:
+        - boot
+        - recovery
+        - vendorboot
+
+jobs:
+  build:
+    name: Build TWRP for spark
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Clean-up
+      uses: rokibhasansagar/slimhub_actions@main
+
+    - name: Swap Space
+      uses: pierotofy/set-swap-space@master
+      with:
+        swap-size-gb: 24
+
+    - name: Build Environment
+      run: |
+        sudo apt update
+        sudo apt -y upgrade
+        sudo apt install -y git-core gnupg flex bison gperf build-essential \
+          zip curl zlib1g-dev gcc-multilib g++-multilib libc6-dev-i386 \
+          lib32ncurses5-dev x11proto-core-dev libx11-dev lib32z1-dev \
+          libgl1-mesa-dev libxml2-utils xsltproc unzip m4 lzop \
+          python3 python3-pip python3-venv ccache
+
+    - name: CCache
+      uses: actions/cache@v4
+      with:
+        path: /tmp/ccache
+        key: twrp-spark-${{ github.run_id }}
+        restore-keys: |
+          twrp-spark-
+
+    - name: Setup CCache
+      run: |
+        export USE_CCACHE=1
+        export CCACHE_DIR=/tmp/ccache
+        export CCACHE_EXEC=/usr/bin/ccache
+        ccache -M 5G
+        ccache -z
+
+    - name: Sync TWRP Manifest
+      run: |
+        mkdir -p ${GITHUB_WORKSPACE}/recovery
+        cd ${GITHUB_WORKSPACE}/recovery
+        repo init -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git -b twrp-12.1 --depth=1
+        repo sync -c -j$(nproc) --no-tags --optimized-fetch --prune
+        echo "SRC_ROOT=${GITHUB_WORKSPACE}/recovery" >> $GITHUB_ENV
+
+    - name: Clone Device Tree
+      run: |
+        cd ${{ env.SRC_ROOT }}
+        git clone https://github.com/sl0on1ck/device_xiaomi_spark -b ${{ github.event.inputs.DEVICE_TREE_BRANCH }} ./device/xiaomi/spark
+        cd device/xiaomi/spark
+        echo "COMMIT_ID=$(git rev-parse HEAD)" >> $GITHUB_ENV
+
+    - name: Build TWRP
+      run: |
+        cd ${{ env.SRC_ROOT }}
+        export USE_CCACHE=1
+        export CCACHE_DIR=/tmp/ccache
+        export CCACHE_EXEC=/usr/bin/ccache
+        source build/envsetup.sh
+        export ALLOW_MISSING_DEPENDENCIES=true
+        lunch twrp_spark-eng
+        mka clean
+        mka bootimage
+
+    - name: Check Output
+      run: |
+        FILE_PATH="${{ env.SRC_ROOT }}/out/target/product/spark"
+        echo "FILE_PATH=${FILE_PATH}" >> $GITHUB_ENV
+        ls -la ${FILE_PATH}/
+        if [ -f ${FILE_PATH}/boot.img ]; then
+          echo "CHECK_IMG_IS_OK=true" >> $GITHUB_ENV
+          echo "RECOVERY_FILE=${FILE_PATH}/boot.img" >> $GITHUB_ENV
+          echo "MD5_IMG=$(md5sum ${FILE_PATH}/boot.img | cut -d ' ' -f 1)" >> $GITHUB_ENV
+        else
+          echo "Recovery out directory is empty."
+          ls -la ${FILE_PATH}/ 2>/dev/null || echo "dir not found"
+          exit 1
+        fi
+
+    - name: Upload boot.img
+      if: env.CHECK_IMG_IS_OK == 'true'
+      uses: actions/upload-artifact@v4
+      with:
+        name: twrp-spark-boot-img
+        path: ${{ env.RECOVERY_FILE }}
+
+    - name: Create Release
+      if: env.CHECK_IMG_IS_OK == 'true'
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          ${{ env.FILE_PATH }}/boot.img
+        name: TWRP for spark // ${{ github.run_id }}
+        tag_name: twrp-spark-${{ github.run_id }}
+        body: |
+          Type: TWRP
+          Target: boot.img
+          Device: spark (Redmi Pad SE 8.7 / g85)
+          Device Tree: https://github.com/sl0on1ck/device_xiaomi_spark/tree/${{ github.event.inputs.DEVICE_TREE_BRANCH }}
+          Commit: ${{ env.COMMIT_ID }}
